@@ -1,0 +1,233 @@
+---
+title: "Defining R Functions"
+author: "Murray Cadzow"
+date: "13/08/2020"
+bibliography: references.bib
+output: 
+  html_document: 
+    theme: cerulean
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+```
+
+**Motivation**
+
+I don't know of a way currently to do something in R, but I know what I want to be able to do.
+
+**Learning Objectives**
+
+-   Be able to create custom functions
+
+    -   Define Arguments
+    -   Input check
+    -   Return results
+
+# Functions
+
+## Why functions
+
+From [R for Data Science](https://r4ds.had.co.nz/functions.html) [@r4ds]:
+
+> One of the best ways to improve your reach as a data scientist is to write functions. Functions allow you to automate common tasks in a more powerful and general way than copy-and-pasting. Writing a function has three big advantages over using copy-and-paste:
+>
+> 1.  You can give a function an evocative name that makes your code easier to understand.
+> 2.  As requirements change, you only need to update code in one place, instead of many.
+> 3.  You eliminate the chance of making incidental mistakes when you copy and paste (i.e. updating a variable name in one place, but not in another).
+>
+> You should consider writing a function whenever you've copied and pasted a block of code more than twice (i.e. you now have three copies of the same code).
+
+## Creating a Function
+
+The syntax for creating a function is as follows:
+
+```{r, eval = FALSE}
+name <- function(variables) {
+  # body
+}
+```
+
+N.B. in RStudio you can get a code snippet/template by typing "fun" and hitting `<tab>`
+
+A function consists of three components:
+
+1.  The function **name**
+2.  the function **arguments/variables**
+3.  the function **body**
+
+### Naming
+
+Naming things is really hard. A helpful tip for naming of functions is the name should give the user an idea of what the function *does*, so should contain a verb.
+
+### Defining arguments
+
+Usually there are two categories of variables for a function. The first category are *data*. The second *behaviour modifiers*, i.e. the control the details of the computation.
+
+### Making Better Functions
+
+
+
+### Returning
+
+Usually you already have an idea about what you want the function to return. There are a few cases where you might want to return early though.
+
+1.  Doe it make your code easier to read with an explicit `return()`
+2.  Do you want your function pipeable?
+
+#### Explicit return
+
+From [R for Data Science](https://r4ds.had.co.nz/functions.html#return-values)[@r4ds]:
+
+> The value returned by the function is usually the last statement it evaluates, but you can choose to return early by using return(). I think it's best to save the use of return() to signal that you can return early with a simpler solution. A common reason to do this is because the inputs are empty:
+>```{r, eval = FALSE}
+>     complicated_function <- function(x, y, z) {
+>      if (length(x) == 0 || length(y) == 0) {
+>        return(0)
+>      }
+>        
+>      # Complicated code here
+>     }
+>```
+> Another reason is because you have a if statement with one complex block and one simple block. For example, you might write an if statement like this:
+>```{r, eval = FALSE}
+> f <- function() { 
+>   if (x) { 
+>     # Do 
+>     # something 
+>     # that 
+>     # takes 
+>     # many 
+>     # lines 
+>     # to 
+>     # express 
+>   } else {
+>     # return something short 
+>   } 
+> } 
+> ```
+>But if the first block is very long, by the time you get to the else, you've forgotten the condition. One way to rewrite it is to use an early return for the simple case:
+> ```{r, eval = FALSE}
+>f <- function() { 
+>   if (!x) { 
+>      return(something_short) 
+>   }
+>
+>   # Do 
+>   # something 
+>   # that 
+>   # takes 
+>   # many 
+>   # lines 
+>   # to 
+>   # express 
+>} 
+>```
+>This tends to make the code easier to understand, because you don't need quite so much context to understand it.
+
+#### Piping
+
+To make a pipeable function there are two types of basic `return` that functions do.
+
+1. with **transformations** - the data gets transformed and then returned
+2. with **side-effects** - the data isn't transformed, instead an action is performed e.g. saving to file or making a plot. Side effect functions should return the unaltered data "invisibly" so that it can be continued in the pipeline.
+
+To return invisibly  call `invisible()` as the final line of the function body.
+
+The example from [R for Data Science](https://r4ds.had.co.nz/functions.html#return-values) [@r4ds] for this:
+
+
+```{r}
+# Prints the number of missing values in a dataframe
+show_missings <- function(df) {
+  n <- sum(is.na(df))
+  cat("Missing values: ", n, "\n", sep = "")
+  
+  invisible(df)
+}
+```
+
+Called interactively:
+```{r}
+show_missings(mtcars)
+```
+
+In a pipeline:
+```{r}
+ show_missings(mtcars) %>% 
+  head()
+```
+
+## Examples
+
+One common thing I find myself needing to do is read in multiple files that form part of a dataset and as part of the load I want to make sure it all comes in the same way such as column names and column data types. Perhaps I also want to drop some of the columns.
+
+For instance the data for this lesson is `palmerpenguins::penguins_raw` written out as a csv per island.
+
+We want to recreate the tidy version for an island.
+
+```{r}
+load_and_clean_data <- function(file_path) {
+  readr::read_csv(file = file_path) %>% 
+    janitor::clean_names() %>%
+    mutate(year = lubridate::year(date_egg),
+           sex = tolower(sex),
+           species_short = stringr::word(species, 1)) %>% 
+    select(species = species_short, 
+           island, 
+           bill_length_mm = culmen_length_mm,
+           bill_depth_mm = culmen_depth_mm, 
+           flipper_length_mm, 
+           body_mass_g, 
+           sex, 
+           year)
+}
+```
+N.B. doesn't create _factors_. [Original function](https://github.com/allisonhorst/palmerpenguins/blob/master/data-raw/penguins.R) 
+
+Testing it out:
+
+```{r, warning= FALSE, message = FALSE}
+load_and_clean_data(here("Data/dream.csv")) %>% 
+  head()
+```
+
+
+With out current knowledge we might load in the three island datasets and recreate the combine data set like so:
+```{r, message = FALSE, warning = FALSE}
+dream <- load_and_clean_data(here("Data/dream.csv"))
+torgersen <- load_and_clean_data(here("Data/torgersen.csv"))
+biscoe <- load_and_clean_data(here("Data/biscoe.csv"))
+
+penguins_tidy <- bind_rows(dream, torgersen, biscoe)
+```
+
+```{r}
+dim(palmerpenguins::penguins)
+dim(penguins_tidy)
+
+head(palmerpenguins::penguins)
+
+head(penguins_tidy)
+```
+
+
+N.B. It won't be _exactly_ the same as `palmerpenguins::penguins` due to how we created the split files.
+
+After learning about [iteration](iteration.html) we can load in all the islands efficiently.
+
+## Going further
+
+Some resources for learning more:
+
+- [R for Data Science - Functions](https://r4ds.had.co.nz/functions.html)
+- [Advanced R - Functions](https://adv-r.hadley.nz/functions.html)
+- [R Packages](https://r-pkgs.org)
+
+# References
+
+
