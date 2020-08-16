@@ -1,7 +1,7 @@
 ---
 title: "Defining R Functions"
 author: "Murray Cadzow"
-date: "13/08/2020"
+date: "`r lubridate::today()`"
 bibliography: references.bib
 output: 
   html_document: 
@@ -9,6 +9,14 @@ output:
     toc: true
     toc_float: true
 ---
+
+```{r prerequsites, eval = FALSE, include = FALSE}
+# RUN THE FOLLOWING TO SET UP REQUIRED PACKAGES AND DATA
+# BEFORE FIRST COMPILING THIS RMD
+# (only need to do once)
+source("Code/setup.R")
+```
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -46,7 +54,7 @@ From [R for Data Science](https://r4ds.had.co.nz/functions.html) [@r4ds]:
 
 The syntax for creating a function is as follows:
 
-```{r, eval = FALSE}
+```{r function_snippet, eval = FALSE}
 name <- function(variables) {
   # body
 }
@@ -68,9 +76,48 @@ Naming things is really hard. A helpful tip for naming of functions is the name 
 
 Usually there are two categories of variables for a function. The first category are *data*. The second *behaviour modifiers*, i.e. the control the details of the computation.
 
+
+### Conditionals
+
+Conditions allow our functions to behave differently based on the arguments
+
+Often testing for conditions takes the form of an _if else_ block
+```{r conditionals, eval = FALSE}
+if (condition) {
+  # run if condition is TRUE
+} else {
+  # if condition FALSE, run something else
+}
+```
+
+We can use these in our functions
+
 ### Making Better Functions
 
+As part of making your functions it can be a good idea to protect against bad inputs. One way of doing this is to test for the correct data structure being passed through.
 
+For instance if you are doing a numerical operation you want to check that the data coming in is numeric
+```{r add_one_function}
+add_one <- function(nums) {
+  if (!is.numeric(nums)) {
+    stop("`nums` needs to be numeric.", call. = FALSE)
+  }
+  nums + 1
+}
+
+
+```
+
+```{r, error = TRUE}
+add_one(12)
+
+add_one("a")
+```
+Tips on using `stop`
+- make the error message be informative
+- always use `call. = FALSE`
+- surround strings in quotes
+- surround variable names in backticks
 
 ### Returning
 
@@ -141,7 +188,7 @@ To return invisibly  call `invisible()` as the final line of the function body.
 The example from [R for Data Science](https://r4ds.had.co.nz/functions.html#return-values) [@r4ds] for this:
 
 
-```{r}
+```{r show_missing_function}
 # Prints the number of missing values in a dataframe
 show_missings <- function(df) {
   n <- sum(is.na(df))
@@ -162,7 +209,7 @@ In a pipeline:
   head()
 ```
 
-## Examples
+## Example
 
 One common thing I find myself needing to do is read in multiple files that form part of a dataset and as part of the load I want to make sure it all comes in the same way such as column names and column data types. Perhaps I also want to drop some of the columns.
 
@@ -170,7 +217,29 @@ For instance the data for this lesson is `palmerpenguins::penguins_raw` written 
 
 We want to recreate the tidy version for an island.
 
-```{r}
+First, we can work out the code we need for this
+```{r test_dream_csv}
+readr::read_csv(file = here::here("Data/dream.csv")) %>%
+  # automatically "clean" the names of special characters
+    janitor::clean_names() %>%
+  # create/modify the columns to be tidier
+    mutate(year = lubridate::year(date_egg),
+           sex = tolower(sex),
+           species_short = stringr::word(species, 1)) %>%
+  # subset and rename to only have the columns remaining we want
+    select(species = species_short, 
+           island, 
+           bill_length_mm = culmen_length_mm,
+           bill_depth_mm = culmen_depth_mm, 
+           flipper_length_mm, 
+           body_mass_g, 
+           sex, 
+           year)
+```
+
+And then convert it into a function
+
+```{r load_clean_data_function}
 load_and_clean_data <- function(file_path) {
   readr::read_csv(file = file_path) %>% 
     janitor::clean_names() %>%
@@ -191,14 +260,14 @@ N.B. doesn't create _factors_. [Original function](https://github.com/allisonhor
 
 Testing it out:
 
-```{r, warning= FALSE, message = FALSE}
+```{r load_dream, warning= FALSE, message = FALSE}
 load_and_clean_data(here("Data/dream.csv")) %>% 
   head()
 ```
 
 
 With out current knowledge we might load in the three island datasets and recreate the combine data set like so:
-```{r, message = FALSE, warning = FALSE}
+```{r load_and_clean_raw_data, message = FALSE, warning = FALSE}
 dream <- load_and_clean_data(here("Data/dream.csv"))
 torgersen <- load_and_clean_data(here("Data/torgersen.csv"))
 biscoe <- load_and_clean_data(here("Data/biscoe.csv"))
@@ -206,7 +275,7 @@ biscoe <- load_and_clean_data(here("Data/biscoe.csv"))
 penguins_tidy <- bind_rows(dream, torgersen, biscoe)
 ```
 
-```{r}
+```{r compare_penguin_data}
 dim(palmerpenguins::penguins)
 dim(penguins_tidy)
 
