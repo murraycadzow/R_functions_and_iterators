@@ -10,12 +10,7 @@ output:
     toc_float: true
 ---
 
-```{r prerequsites, eval = FALSE, include = FALSE}
-# RUN THE FOLLOWING TO SET UP REQUIRED PACKAGES AND DATA
-# BEFORE FIRST COMPILING THIS RMD
-# (only need to do once)
-source("Code/setup.R")
-```
+
 
 
 ```{r setup, include=FALSE}
