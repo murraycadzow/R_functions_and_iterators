@@ -14,7 +14,7 @@ output:
 # RUN THE FOLLOWING TO SET UP REQUIRED PACKAGES AND DATA
 # BEFORE FIRST COMPILING THIS RMD
 # (only need to do once)
-source("Code/setup.R")
+source("setup.R")
 ```
 
 
