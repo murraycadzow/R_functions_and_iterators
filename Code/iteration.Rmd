@@ -1,0 +1,238 @@
+---
+title: "Iterating"
+author: "Murray Cadzow"
+date: "`r lubridate::today()`"
+output:
+    html_document: 
+      theme: cerulean
+      toc: true
+      toc_float: true
+      toc_depth: 3
+bibliography: references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+```
+
+
+**Motivation**
+
+I can do something once, but I need to do it a lot more times (say 10, 100, or 1000+ times). I could copy, paste, and edit but that is tedious, and if I need to make a change I have to do it to all of my copies, increasing the likelihood of introducing an error.
+
+**Learning Objectives**
+
+- Understand how to apply functions to a collection of items
+  - Pass multiple arguments
+
+
+
+# Iterating
+
+At the heart of it, using iteration lets us scale with less effort. Good reference material about iteration can be found in [R for Data Science - Iteration](https://r4ds.had.co.nz/iteration.html) [@r4ds].
+
+The main focus of this lesson will be on `purrr` because conceptually it gives a nice introduction to iterating.
+
+## Purrr
+
+What is purrr? Purrr is a package for functional programming.
+
+The premise of purrr is to map a function over your data. We're going to start with the `map()` series of functions which enable you to replace loops more succinctly and with easier to read code.
+
+```{r, eval = FALSE}
+# Install as part of the tidyverse
+install.packages("tidyverse")
+
+# or install only the purrr package
+install.packages("purrr")
+```
+
+```{r}
+library(purrr)
+```
+
+`purrr` provides a functional programming approach, where we "map" out function to our data.
+
+
+One reason to use `purrr` is that it is 'type stable'. What this means is that the suffix versions of the functions reveal what the returned data type is going to be (and is enforced by `purrr`).
+
+`map` is the general version. it takes a vector/list as input and a function, and returns back a list.
+
+```{r, error = TRUE}
+#returns a list
+map(1:3, print)
+
+# returns a character vector
+map_chr(letters[1:3], print)
+
+# returns a numeric (double) vector
+# using an anonymous function
+map_dbl(1:3, function(x) x * 3)
+
+# returns a logical vector
+# using the formula method for anonymous functions
+# .x represents the data item
+map_lgl(1:3, ~ .x < 3 )
+
+# breaks cause wrong output data type
+map_dbl(letters[1:3], print)
+```
+
+### Reading files example
+
+Lets start with an example that is relatively common, reading in multiple files as data.
+
+Lets take the example from the functions lesson for reading in the raw penguins data
+```{r}
+load_and_clean_data <- function(file_path) {
+  readr::read_csv(file = file_path) %>% 
+    janitor::clean_names() %>%
+    mutate(year = lubridate::year(date_egg),
+           sex = tolower(sex),
+           species_short = stringr::word(species, 1)) %>% 
+    select(species = species_short, 
+           island, 
+           bill_length_mm = culmen_length_mm,
+           bill_depth_mm = culmen_depth_mm, 
+           flipper_length_mm, 
+           body_mass_g, 
+           sex, 
+           year)
+}
+```
+
+Remember for the functions example we had this duplicated code
+
+```{r, message = FALSE, warning = FALSE}
+dream <- load_and_clean_data(here("Data/dream.csv"))
+torgersen <- load_and_clean_data(here("Data/torgersen.csv"))
+biscoe <- load_and_clean_data(here("Data/biscoe.csv"))
+
+penguins_tidy <- bind_rows(dream, torgersen, biscoe)
+```
+
+What would happen if we had another island csv that we needed to include? We'd have to alter the above in several places.
+
+A better way we can do this is make a vector that contains all the files we interested in reading in. We can make use of `list.files` to get a list of the files we want. 
+
+```{r, message = FALSE, warning = FALSE}
+penguin_csvs <- list.files(path = here("Data"), "*.csv", full.names = TRUE)
+
+penguins_tidy_purrr <- map_dfr(penguin_csvs, load_and_clean_data)
+```
+
+
+
+
+### Safely
+
+What happens if the input into our function that we're mapping is going to cause an error? We don't necessarily want the map to break on that error (especially if the mapping is a long task).
+
+Instead what we can do is create a "safe" version of our function. In this case we're going to use our data loading function but this time we're going to provide it a list of files, some of which won't exist. We'll do something slightly differently this time to load them - first in a way that breaks the `map`, and secondly in a 'safe' manner.
+
+```{r, error = TRUE}
+test_files <- c("dream.csv", "biscoe.csv", "doesnt_exist.csv")
+
+# using the formula anonymous function to create the actual path to the data
+penguin_list <- map(test_files, ~ load_and_clean_data(paste0(here("Data/"), .x)) )
+
+# dosn't exist because of the error in the above map()
+penguin_list
+```
+
+What happens is that `map` errors and stops and all the processing that it had done gets discarded.
+
+Lets make a safe version of our function so that the error is caught but the `map` carries on
+```{r}
+safe_load_and_clean_data <- purrr::safely(load_and_clean_data)
+
+penguin_list <- map(test_files, ~ safe_load_and_clean_data(paste0(here("Data/"), .x)) )
+
+names(penguin_list) <- test_files
+penguin_list %>% head()
+```
+
+Now lets take a look at what we got back
+```{r}
+str(penguin_list)
+```
+
+You'll see that inside the returned list that we have for each file an entry called `results` and one called `error`
+
+
+
+## For loop
+
+A `for` loop is another way of iterating across a set of items to do something. It consists of 
+
+```{r, eval = FALSE}
+for (variable in vector) {
+  # loop body
+  # "do something"
+}
+```
+
+`for` loops are very useful. And can be extremely useful if you want to be able to "peer" inside at any stage of the iteration to get an idea about what is going on.
+
+
+The use of a `for` loop does require some extra preparation.
+
+Lets use the same reading in files example as before. 
+```{r, message = FALSE, warning = FALSE}
+# filenames we want to read
+penguin_csvs <- list.files(path = here("Data"), "*.csv", full.names = TRUE)
+
+penguins_tidy_for <- tibble() # declare variable for output
+for (file in penguin_csvs) { # set of things to iterate over
+  penguins_tidy_for <- bind_rows(penguins_tidy_for, load_and_clean_data(file))
+}
+```
+
+The `for` loop can make debugging easier, especially if you don't have an idea about which item in your set is causing issues.
+
+Lets use the missing file example again, but this time we can include a debugging `print()` in the loop body to let us know where it got to
+```{r, error = TRUE, message = FALSE, warning = FALSE}
+# filenames we want to read
+test_files <- c("dream.csv", "biscoe.csv", "doesnt_exist.csv")
+
+penguins_tidy_for_missing_file <- tibble() # declare variable for output
+for (file in test_files) { # set of things to iterate over
+  print(paste("read", file))
+  penguins_tidy_for_missing_file <- bind_rows(penguins_tidy_for_missing_file,
+                                            load_and_clean_data(paste0(here("Data/"), file))
+                                            )
+ print(paste("loaded", file))
+}
+
+
+```
+
+Now that we have an idea of where the loop failed we could dig deeper into what it was that caused the failure.
+
+## l/s/v/apply
+
+These functions are similar to the `purrr` functions but differ in that they can be difficult to understand what data structure will be returned to you as it is input dependent.
+
+- lapply: list apply - similar to `purrr::map`
+- sapply: lapply but returns a simplified vector or matrix
+- vapply: similar to sapply but returns a pre-specified return type. Most similar to `purrr` map functions
+
+## Making it faster
+
+Some easy ways of improving performance is to through more CPUs at the problem. This is beyond what this lesson covers but checkout the following packages that implement parallel processing for `purrr`, `l/s/apply`, and `for`.
+
+- [{furrr}](https://davisvaughan.github.io/furrr/) for making {purrr} parallel
+- [Parallel programmming in R](https://towardsdatascience.com/getting-started-with-parallel-programming-in-r-d5f801d43745)
+  - {parallel}
+  - {foreach}
+  - {doParallel}
+
+## Going further
+
+For additional resources about iteration check out
+- [R for Data Science - Iteration](https://r4ds.had.co.nz/iteration.html)
+- [purrr documentation](https://purrr.tidyverse.org)
+
+# References
