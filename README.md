@@ -10,7 +10,7 @@ usethis::use_course(url = "https://github.com/murraycadzow/R_functions_and_itera
     destdir = "~/Desktop")
 ```
 
-Make sure to run this code beforehand to make sure you are all set up.
+After opening the R Project, make sure to run this code beforehand to make sure you are all set up.
 
 ```{r prerequsites, eval = FALSE, include = FALSE}
 # RUN THE FOLLOWING TO SET UP REQUIRED PACKAGES AND DATA
