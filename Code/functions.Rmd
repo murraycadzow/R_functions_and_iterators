@@ -6,8 +6,10 @@ bibliography: references.bib
 output: 
   html_document: 
     theme: cerulean
-    toc: true
-    toc_float: true
+    toc: yes
+    toc_float: yes
+    number_sections: yes
+    highlight: haddock
 ---
 
 

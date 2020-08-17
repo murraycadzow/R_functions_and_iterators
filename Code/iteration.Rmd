@@ -5,9 +5,10 @@ date: "`r lubridate::today()`"
 output:
     html_document: 
       theme: cerulean
-      toc: true
-      toc_float: true
-      toc_depth: 3
+      highlight: haddock
+      toc: yes
+      toc_float: yes
+      number_sections: yes
 bibliography: references.bib
 ---
 
@@ -58,7 +59,7 @@ library(purrr)
 
 One reason to use `purrr` is that it is 'type stable'. What this means is that the suffix versions of the functions reveal what the returned data type is going to be (and is enforced by `purrr`).
 
-`map` is the general version. it takes a vector/list as input and a function, and returns back a list.
+`map` is the general version. it takes a vector/list as input and a function, and returns back a list. Following the function argument, additional non-varying arguments can also be supplied which will be passed through to the function.
 
 ```{r, error = TRUE}
 #returns a list
@@ -78,6 +79,12 @@ map_lgl(1:3, ~ .x < 3 )
 
 # breaks cause wrong output data type
 map_dbl(letters[1:3], print)
+
+
+# providing additional arguments
+missing_nums <- list(c(1:3, NA), c(NA,rnorm(6)), 4:16)
+map_dbl(missing_nums, mean)
+map_dbl(missing_nums, mean, na.rm = TRUE)
 ```
 
 ### Reading files example
@@ -132,7 +139,7 @@ What happens if the input into our function that we're mapping is going to cause
 
 Instead what we can do is create a "safe" version of our function. In this case we're going to use our data loading function but this time we're going to provide it a list of files, some of which won't exist. We'll do something slightly differently this time to load them - first in a way that breaks the `map`, and secondly in a 'safe' manner.
 
-```{r, error = TRUE}
+```{r, error = TRUE, message = FALSE, warning = FALSE}
 test_files <- c("dream.csv", "biscoe.csv", "doesnt_exist.csv")
 
 # using the formula anonymous function to create the actual path to the data
@@ -145,7 +152,7 @@ penguin_list
 What happens is that `map` errors and stops and all the processing that it had done gets discarded.
 
 Lets make a safe version of our function so that the error is caught but the `map` carries on
-```{r}
+```{r, message = FALSE, warning = FALSE}
 safe_load_and_clean_data <- purrr::safely(load_and_clean_data)
 
 penguin_list <- map(test_files, ~ safe_load_and_clean_data(paste0(here("Data/"), .x)) )
