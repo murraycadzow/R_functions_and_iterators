@@ -12,7 +12,7 @@ if (!require(janitor)) {
 }
 
 if (!require(palmerpenguins)) {
-  install.packages("palmerpengiuns")
+  install.packages("palmerpenguins")
 }
 
 
