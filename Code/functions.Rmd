@@ -111,6 +111,7 @@ add_one(12)
 add_one("a")
 ```
 Tips on using `stop`
+
 - make the error message be informative
 - always use `call. = FALSE`
 - surround strings in quotes
